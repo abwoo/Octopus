@@ -19,17 +19,38 @@ export default function App() {
 
     useEffect(() => {
         fetchLogs()
-        fetchGuide()
+        // Initial guide fetch with retry
+        fetchGuide(3)
         const interval = setInterval(fetchLogs, 2000)
         return () => clearInterval(interval)
     }, [])
 
     const fetchLogs = () => {
-        fetch('/api/logs').then(res => res.json()).then(data => setLogs(data.logs || []))
+        fetch('/api/logs')
+            .then(res => res.json())
+            .then(data => setLogs(data.logs || []))
+            .catch(err => console.error("Logs fetch failed:", err))
     }
 
-    const fetchGuide = () => {
-        fetch('/api/guide').then(res => res.json()).then(data => setGuideContent(data.content))
+    const fetchGuide = (retries = 3) => {
+        fetch('/api/guide')
+            .then(res => {
+                if (!res.ok) throw new Error("Network response was not ok");
+                return res.json();
+            })
+            .then(data => {
+                if (data.content) {
+                    setGuideContent(data.content)
+                } else if (retries > 0) {
+                    setTimeout(() => fetchGuide(retries - 1), 2000)
+                }
+            })
+            .catch(err => {
+                console.error("Guide fetch failed:", err)
+                if (retries > 0) {
+                    setTimeout(() => fetchGuide(retries - 1), 2000)
+                }
+            })
     }
 
     useEffect(() => {
@@ -48,7 +69,6 @@ export default function App() {
         setIsProcessing(true)
         const cmd = prompt.trim()
 
-        // If it starts with '!', treat as raw PowerShell, else treat as AI instruction
         if (cmd.startsWith('!')) {
             const rawCmd = cmd.substring(1)
             addLocalLog(`Executing PowerShell: ${rawCmd}`, 'system')
@@ -65,7 +85,6 @@ export default function App() {
                 addLocalLog(`Terminal Error: ${err.message}`, 'error')
             }
         } else {
-            // AI Chat Mode
             addLocalLog(`AI Instruction: ${cmd}`, 'user')
             try {
                 const res = await fetch('/api/chat', {
@@ -127,7 +146,7 @@ export default function App() {
             <header className="header">
                 <div className="brand">
                     <h1>OCTOPUS</h1>
-                    <span className="version">Hybrid Engine v0.2</span>
+                    <span className="version">Hybrid Engine v0.2.1</span>
                 </div>
                 <div className="header-actions">
                     <button className="btn-icon-only" onClick={() => { fetchGuide(); setShowGuide(true); }} title="Guide">❓</button>
@@ -266,7 +285,7 @@ export default function App() {
                             {guideContent ? (
                                 <pre>{guideContent}</pre>
                             ) : (
-                                <div className="loading">Loading manual from core docs...</div>
+                                <div className="loading">Manual data not detected. Retrieving from core engine...</div>
                             )}
                         </div>
                         <div className="modal-actions">

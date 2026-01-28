@@ -82,6 +82,10 @@ def run_cli_action(action_data: Dict[str, Any]):
     except subprocess.CalledProcessError as e:
         return {"status": "error", "message": e.stderr or str(e)}
 
+@app.get("/status")
+async def get_status():
+    return {"status": "ready", "version": "0.2.1"}
+
 @app.get("/guide")
 async def get_guide():
     if not os.path.exists(config["guide_file"]):
