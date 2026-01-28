@@ -1,0 +1,4 @@
+﻿adapter: mock
+workspace: workspace
+log_file: logs/actions.log
+action_interval_ms: 300

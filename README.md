@@ -6,7 +6,7 @@ Octopus is a model-agnostic execution layer for Windows. It provides a safe, str
 
 ## Project Structure
 
-```
+```text
 Octopus/
 ├── core/
 │   ├── executor/
