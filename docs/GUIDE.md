@@ -1,39 +1,43 @@
-# Octopus 操作指南 (v0.1)
+# Octopus 操作指南 (v0.2 - 全能版)
 
-欢迎使用 Octopus，这是一个由 AI 驱动的 Windows 自动化执行引擎。
+欢迎使用 Octopus。v0.2 版本引入了 **PowerShell 透传** 和 **协议多元化** 支持。
 
-## 1. 核心架构
+## 1. 核心交互方式
 
-Octopus 采用 **一键驱动，全端同步** 的逻辑。无论您是在 PowerShell 使用 `.\agent.ps1`，还是在 Web Dashboard 点击按钮，执行路径完全一致。
+Octopus 现支持两种主要的交互模式：
 
-- **逻辑链条**：Dashboard -> FastAPI -> **CLI (Subprocess)** -> Core Agent -> Hardware/System
-- **透明度**：Web 端的日志区域会实时显示正在执行的原始 Python 终端命令。
+- **AI 代理模式**：在前端输入框直接输入自然语言（如“帮我写一个 python 脚本”），后台 LLM 将其解析为 Action 序列。
+- **PowerShell 透传模式**：在输入框开头使用 `!` 符号（如 `!ls`, `!dir`, `!Get-Service`），命令将直接在后台 PowerShell 终端执行，结果实时返回日志区。
 
-## 2. LLM 平台配置
+## 2. API 与协议配置 (多元化)
 
-点击 Dashboard 右上角的齿轮图标 **(⚙️)** 进行配置：
+点击右上角齿轮 **(⚙️)**，您可以配置以下协议：
 
-| 平台类型 | 配置说明 | 适用场景 |
-| :--- | :--- | :--- |
-| **Google Gemini** | 输入 API Key | 性能强劲，长上下文支持 |
-| **OpenAI Cloud** | 输入 sk-xxx | 行业标准方案 |
-| **Local LLM** | 开启 Ollama/LM Studio 并填写 Base URL | 隐私保护，无网络环境 |
-| **Custom** | 填写兼容 OpenAI 协议的自定义端点 | 中转、私有化部署 |
+| 协议 / 平台 | 说明 |
+| :--- | :--- |
+| **OpenAI** | 兼容所有标准 OpenAI 接口。 |
+| **Google Gemini** | 深度集成 Gemini Pro/Flash 模型。 |
+| **Anthropic** | 原生支持 Claude 3/3.5 模型系列。 |
+| **Local** | 适配 Ollama, LM Studio 等本地运行的大模型。 |
+| **Universal HTTP** | **万能模式**。您可以填入任何 API 地址，手动适配非标接口。 |
 
-## 3. 常用指令与动作
+## 3. 增强技能库 (Skills)
 
-您可以通过底部输入框下达自然语言指令：
+本版本新增了以下核心技能：
 
-- **鼠标操作**：`mouse.move(x, y)`, `mouse.click()`
-- **文件管理**：`file.write(path, content)`, `file.read(path)`
-- **系统工具**：`system.screen_size()`, `system.info()`
-- **组合指令示例**：“帮我在桌面创建一个名为 'MyBot' 的文件夹，并在里面写一个 hello.txt”
+- **Network (网络)**: 执行 HTTP GET/POST 请求，获取互联网数据。
+- **Process (进程)**: 查看 (`list`) 或终止 (`kill`) 系统的运行进程。
+- **File (文件)**: 原子化的读写操作，限制在 `workspace` 安全目录内。
 
-## 4. 安全机制
+## 4. 命令行交互 (CLI)
 
-- **紧急停机**：按下全局快捷键 **Ctrl + Alt + Q** 立即停止所有 Agent 活动。
-- **沙盒运行**：所有文件操作默认限制在项目根目录下的 `workspace/` 文件夹内。
+如果您更喜欢在终端工作，可以使用 `agent.ps1`：
 
-## 5. 维护与更新
+- `.\agent.ps1 shell`: 进入交互式对话模式。
+- `.\agent.ps1 skill create <name>`: 快速创建新的技能开发模板。
+- `.\agent.ps1 config edit`: 在默认编辑器中直接调整全局配置。
 
-项目具备自动同步功能，运行 `.\sync.ps1` 可将您的本地修改推送至云端。
+## 5. 安全与停机
+
+- 全局急停：**Ctrl + Alt + Q**。
+- 日志透明：Web 端日志详尽记录了每一条由 AI 生成或手动输入的终端指令。

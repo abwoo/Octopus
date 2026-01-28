@@ -191,7 +191,21 @@ body {
   font-size: 0.75rem;
   color: var(--text-dim);
   text-transform: uppercase;
+  margin-bottom: 0.5rem;
+}
+
+.hint {
+  font-size: 0.7rem;
+  color: var(--text-dim);
+  opacity: 0.6;
   margin-bottom: 1rem;
+}
+
+.hint code {
+  color: var(--primary);
+  background: rgba(99, 102, 241, 0.1);
+  padding: 0.1rem 0.3rem;
+  border-radius: 4px;
 }
 
 .chat-form {
@@ -239,11 +253,31 @@ body {
   font-style: italic;
 }
 
-.log-entry {
-  padding: 0.5rem 0;
+.log-entry.terminal {
+  color: #38bdf8;
+  border-left: 3px solid #38bdf8;
+  padding-left: 0.75rem;
+  font-family: 'Fira Code', monospace;
+}
+
+.loading {
+  text-align: center;
+  padding: 2rem;
   color: var(--text-dim);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.03);
-  font-size: 0.8rem;
+  font-style: italic;
+}
+
+.guide-content.terminal-style {
+  background: #0a0a0a;
+  color: #d1d5db;
+  font-family: 'Fira Code', monospace;
+  font-size: 0.85rem;
+  border: 1px solid #333;
+}
+
+.guide-content pre {
+  margin: 0;
+  white-space: pre-wrap;
 }
 
 .log-entry.system {

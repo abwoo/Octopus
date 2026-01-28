@@ -204,6 +204,41 @@ def cmd_run(action_json: Optional[str], debug: bool):
         except Exception as e:
             echo_err(f"Agent error: {e}")
 
+@cli.command("shell")
+def cmd_shell():
+    """Start an interactive Octopus shell."""
+    echo_header("Octopus Interactive Shell")
+    click.echo("  Type your instruction in natural language or PowerShell.")
+    click.echo("  Commands: 'exit', 'clear', 'status'")
+    click.echo()
+    
+    while True:
+        try:
+            cmd = click.prompt(click.style("Octopus >", fg="cyan"))
+            if cmd.lower() in ["exit", "quit"]: break
+            if cmd.lower() == "clear":
+                click.clear()
+                continue
+            if cmd.lower() == "status":
+                ctx = click.get_current_context()
+                ctx.invoke(cmd_status)
+                continue
+            
+            # Execute logic: Treat as action if it looks like JSON, else pass to PowerShell
+            if cmd.strip().startswith("{"):
+                # Action execution
+                ctx = click.get_current_context()
+                ctx.invoke(cmd_run, action_json=cmd)
+            else:
+                # PowerShell execution
+                echo_info(f"Running via PowerShell: {cmd}")
+                result = subprocess.run(["powershell", "-Command", cmd], capture_output=True, text=True)
+                if result.stdout: click.echo(result.stdout)
+                if result.stderr: echo_err(result.stderr)
+        except KeyboardInterrupt:
+            break
+    echo_info("Shell closed")
+
 # ─────────────────────────────────────────────────────────────────────────────
 # Model/Adapter Management
 # ─────────────────────────────────────────────────────────────────────────────
@@ -272,6 +307,14 @@ def config_show():
         click.echo(f"  {k}: {v}")
     click.echo()
 
+@config_group.command("edit")
+def config_edit():
+    """Open config file in default editor."""
+    if os.path.exists(CONFIG_FILE):
+        click.edit(filename=CONFIG_FILE)
+    else:
+        echo_err("Config file not found")
+
 @config_group.command("set")
 @click.argument("key")
 @click.argument("value")
@@ -295,6 +338,45 @@ def config_set(key: str, value: str):
     config[key] = value
     save_config(config)
     echo_ok(f"Set '{key}' to '{value}'")
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Skill Development
+# ─────────────────────────────────────────────────────────────────────────────
+
+@cli.group("skill")
+def skill_group():
+    """Manage and create agent skills."""
+    pass
+
+@skill_group.command("create")
+@click.argument("name")
+def skill_create(name: str):
+    """Create a new skill template."""
+    skills_dir = os.path.join(PROJECT_ROOT, "skills")
+    os.makedirs(skills_dir, exist_ok=True)
+    
+    target = os.path.join(skills_dir, f"{name.lower()}.py")
+    if os.path.exists(target):
+        echo_err(f"Skill '{name}' already exists")
+        return
+        
+    template = f"""import logging
+from typing import Dict, Any
+
+log = logging.getLogger("octopus.skill.{name.lower()}")
+
+def execute(params: Dict[str, Any]) -> Dict[str, Any]:
+    \"\"\"
+    Template for skill: {name}
+    Add your logic here.
+    \"\"\"
+    log.info(f"Executing skill {name} with params: {{params}}")
+    return {{"status": "ok", "message": f"Skill {name} executed successfully"}}
+"""
+    with open(target, "w", encoding="utf-8") as f:
+        f.write(template)
+    echo_ok(f"Created skill template: {target}")
 
 
 # ─────────────────────────────────────────────────────────────────────────────

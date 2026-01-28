@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 
 export default function App() {
-    const [status, setStatus] = useState('online')
     const [logs, setLogs] = useState([])
     const [prompt, setPrompt] = useState('')
     const [isProcessing, setIsProcessing] = useState(false)
@@ -12,26 +11,26 @@ export default function App() {
 
     // LLM Config State
     const [llmConfig, setLlmConfig] = useState({
-        provider: 'gemini',
+        provider: 'openai',
         api_key: '',
-        model: 'gemini-1.5-flash',
+        model: '',
         base_url: ''
     })
 
     useEffect(() => {
-        // Initial fetch
-        fetch('/api/logs').then(res => res.json()).then(data => setLogs(data.logs || []))
-        fetch('/api/guide').then(res => res.json()).then(data => setGuideContent(data.content))
-
-        const interval = setInterval(() => {
-            fetch('/api/logs')
-                .then(res => res.json())
-                .then(data => setLogs(data.logs || []))
-                .catch(() => { })
-        }, 2000)
-
+        fetchLogs()
+        fetchGuide()
+        const interval = setInterval(fetchLogs, 2000)
         return () => clearInterval(interval)
     }, [])
+
+    const fetchLogs = () => {
+        fetch('/api/logs').then(res => res.json()).then(data => setLogs(data.logs || []))
+    }
+
+    const fetchGuide = () => {
+        fetch('/api/guide').then(res => res.json()).then(data => setGuideContent(data.content))
+    }
 
     useEffect(() => {
         logsEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -42,55 +41,55 @@ export default function App() {
         setLogs(prev => [...prev, `${time} | ${type.toUpperCase()} | ${msg}`])
     }
 
-    const executeAction = async (type, params = {}) => {
-        const cmdStr = `agent run '{"type": "${type}", "params": ${JSON.stringify(params)}}'`
-        addLocalLog(`Calling Terminal: ${cmdStr}`, 'system')
-
-        try {
-            const res = await fetch('/api/action', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ type, params })
-            })
-            const data = await res.json()
-            if (data.status === 'ok') {
-                addLocalLog(`Terminal Output: ${data.output.trim()}`, 'ok')
-            }
-        } catch (err) {
-            addLocalLog(`Execution failed: ${err.message}`, 'error')
-        }
-    }
-
-    const handleChat = async (e) => {
+    const handleCommand = async (e) => {
         e.preventDefault()
         if (!prompt.trim() || isProcessing) return
 
         setIsProcessing(true)
-        addLocalLog(`Instruction: ${prompt}`, 'user')
+        const cmd = prompt.trim()
 
-        try {
-            const res = await fetch('/api/chat', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ prompt })
-            })
-            const data = await res.json()
-
-            if (data.status === 'error') {
-                addLocalLog(`AI Error: ${data.message}`, 'error')
-            } else {
-                addLocalLog(`AI Intent: ${data.intent}`, 'ai')
-                data.results.forEach(r => {
-                    if (r.status === 'ok') addLocalLog(`Action Success: ${r.output.trim()}`, 'ok')
-                    else addLocalLog(`Action Error: ${r.message}`, 'error')
+        // If it starts with '!', treat as raw PowerShell, else treat as AI instruction
+        if (cmd.startsWith('!')) {
+            const rawCmd = cmd.substring(1)
+            addLocalLog(`Executing PowerShell: ${rawCmd}`, 'system')
+            try {
+                const res = await fetch('/api/terminal', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ cmd: rawCmd })
                 })
+                const data = await res.json()
+                if (data.output) addLocalLog(data.output, 'terminal')
+                if (data.error) addLocalLog(data.error, 'error')
+            } catch (err) {
+                addLocalLog(`Terminal Error: ${err.message}`, 'error')
             }
-            setPrompt('')
-        } catch (err) {
-            addLocalLog(`Chat failed: ${err.message}`, 'error')
-        } finally {
-            setIsProcessing(false)
+        } else {
+            // AI Chat Mode
+            addLocalLog(`AI Instruction: ${cmd}`, 'user')
+            try {
+                const res = await fetch('/api/chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ prompt: cmd })
+                })
+                const data = await res.json()
+                if (data.status === 'error') {
+                    addLocalLog(`AI Error: ${data.message}`, 'error')
+                } else {
+                    addLocalLog(`AI Intent: ${data.intent}`, 'ai')
+                    data.results.forEach(r => {
+                        if (r.status === 'ok') addLocalLog(`Action Success: ${r.output.trim()}`, 'ok')
+                        else addLocalLog(`Action Error: ${r.message}`, 'error')
+                    })
+                }
+            } catch (err) {
+                addLocalLog(`Chat failed: ${err.message}`, 'error')
+            }
         }
+
+        setPrompt('')
+        setIsProcessing(false)
     }
 
     const saveConfig = async () => {
@@ -101,9 +100,25 @@ export default function App() {
                 body: JSON.stringify(llmConfig)
             })
             setShowConfig(false)
-            addLocalLog(`LLM Platform configured: ${llmConfig.provider}`, 'system')
+            addLocalLog(`Protocol configured: ${llmConfig.provider}`, 'system')
         } catch (err) {
             addLocalLog('Failed to save config', 'error')
+        }
+    }
+
+    const executeAction = async (type, params = {}) => {
+        addLocalLog(`Sending Action: ${type}`, 'system')
+        try {
+            const res = await fetch('/api/action', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ type, params })
+            })
+            const data = await res.json()
+            if (data.output) addLocalLog(data.output, 'ok')
+            else if (data.message) addLocalLog(data.message, 'error')
+        } catch (err) {
+            addLocalLog(`Execution failed: ${err.message}`, 'error')
         }
     }
 
@@ -112,18 +127,14 @@ export default function App() {
             <header className="header">
                 <div className="brand">
                     <h1>OCTOPUS</h1>
-                    <span className="version">Unified Engine v0.1</span>
+                    <span className="version">Hybrid Engine v0.2</span>
                 </div>
                 <div className="header-actions">
-                    <button className="btn-icon-only" onClick={() => setShowGuide(true)} title="Usage Guide">
-                        ❓
-                    </button>
-                    <button className="btn-icon-only" onClick={() => setShowConfig(true)} title="Settings">
-                        ⚙️
-                    </button>
+                    <button className="btn-icon-only" onClick={() => { fetchGuide(); setShowGuide(true); }} title="Guide">❓</button>
+                    <button className="btn-icon-only" onClick={() => setShowConfig(true)} title="Settings">⚙️</button>
                     <div className="status-badge">
                         <div className="status-dot online"></div>
-                        TERMINAL CONNECTED
+                        KERNEL READY
                     </div>
                 </div>
             </header>
@@ -131,143 +142,135 @@ export default function App() {
             <main className="grid">
                 <section className="card card-controls">
                     <div className="card-header">
-                        <h2>Unified Control</h2>
-                        <p className="subtitle">Logic Path Identical to PowerShell CLI</p>
+                        <h2>Command Interface</h2>
+                        <p className="subtitle">Universal PowerShell & AI Bridge</p>
                     </div>
 
                     <div className="controls">
-                        <button className="btn" onClick={() => executeAction('mouse.move', { x: 500, y: 500 })}>
-                            <span className="btn-icon">🎯</span>
-                            Center Mouse
-                        </button>
-                        <button className="btn" onClick={() => executeAction('mouse.click', { button: 'left' })}>
-                            <span className="btn-icon">🖱️</span>
-                            Left Click
-                        </button>
                         <button className="btn" onClick={() => executeAction('system.screen_size')}>
-                            <span className="btn-icon">📏</span>
-                            Screen Info
+                            <span className="btn-icon">📏</span> Screen Size
                         </button>
                         <button className="btn" onClick={() => executeAction('system.info')}>
-                            <span className="btn-icon">⚙️</span>
-                            System Info
+                            <span className="btn-icon">⚙️</span> System Info
+                        </button>
+                        <button className="btn" onClick={() => window.open('https://github.com', '_blank')}>
+                            <span className="btn-icon">🌐</span> Open Browser
+                        </button>
+                        <button className="btn" onClick={() => executeAction('file.read', { path: 'workspace/logs.txt' })}>
+                            <span className="btn-icon">📂</span> Read Workspace
                         </button>
                     </div>
 
                     <div className="chat-area">
-                        <h3>Human-in-the-Loop AI Orchestration</h3>
-                        <form onSubmit={handleChat} className="chat-form">
+                        <h3>Terminal Interaction</h3>
+                        <p className="hint">Tip: Use <code>!</code> to run raw PowerShell (e.g. <code>!ls</code>)</p>
+                        <form onSubmit={handleCommand} className="chat-form">
                             <input
                                 type="text"
-                                placeholder="Ex: 'List files in workspace'..."
+                                placeholder="Ask AI or type !powershell_command..."
                                 value={prompt}
                                 onChange={(e) => setPrompt(e.target.value)}
                                 disabled={isProcessing}
                             />
                             <button type="submit" disabled={isProcessing}>
-                                {isProcessing ? 'Thinking...' : 'Execute CLI'}
+                                {isProcessing ? 'Proc...' : 'ENTER'}
                             </button>
                         </form>
                     </div>
                 </section>
 
                 <section className="card card-logs">
-                    <h2>CLI Output Console</h2>
+                    <h2>Octopus Core Engine Logs</h2>
                     <div className="log-container">
-                        {logs.length === 0 ? (
-                            <div className="log-empty">Waiting for CLI interaction...</div>
-                        ) : (
-                            logs.map((log, i) => {
-                                const isSystem = log.includes('| SYSTEM |') || log.includes('Calling Terminal')
-                                const isError = log.includes('| ERROR |') || log.includes('Error')
-                                const isOk = log.includes('| OK |') || log.includes('Action Success')
-                                const isAi = log.includes('| AI |')
-
-                                let className = "log-entry"
-                                if (isSystem) className += " system"
-                                if (isError) className += " error"
-                                if (isOk) className += " ok"
-                                if (isAi) className += " ai"
-
-                                return (
-                                    <div key={i} className={className}>
-                                        {log}
-                                    </div>
-                                )
-                            })
-                        )}
+                        {logs.map((log, i) => {
+                            const type = log.includes('| SYSTEM |') ? 'system' :
+                                log.includes('| TERMINAL |') ? 'terminal' :
+                                    log.includes('| USER |') ? 'user' :
+                                        log.includes('| AI |') ? 'ai' :
+                                            log.includes('| OK |') ? 'ok' :
+                                                log.includes('| ERROR |') ? 'error' : ''
+                            return (
+                                <div key={i} className={`log-entry ${type}`}>
+                                    {log}
+                                </div>
+                            )
+                        })}
                         <div ref={logsEndRef} />
                     </div>
                 </section>
             </main>
 
-            {/* Configuration Modal */}
             {showConfig && (
                 <div className="modal-overlay">
                     <div className="modal card">
-                        <h2>LLM Platform Engine</h2>
-                        <p className="modal-subtitle">Configure cloud or local LLM providers</p>
+                        <h2>Module Config</h2>
+                        <p className="modal-subtitle">Diversify Model Protocols & Endpoints</p>
 
                         <div className="form-group">
-                            <label>Provider Type</label>
+                            <label>Protocol / Provider</label>
                             <select
                                 value={llmConfig.provider}
                                 onChange={(e) => setLlmConfig({ ...llmConfig, provider: e.target.value })}
                             >
-                                <option value="gemini">Google Gemini</option>
-                                <option value="openai">OpenAI Cloud</option>
-                                <option value="local">Local LLM (Ollama/LM Studio)</option>
-                                <option value="custom">Custom Provider</option>
+                                <option value="openai">OpenAI (GPT-4o/o1)</option>
+                                <option value="gemini">Google Gemini (1.5 Pro)</option>
+                                <option value="anthropic">Anthropic (Claude 3.5)</option>
+                                <option value="local">Local (Ollama/LM Studio)</option>
+                                <option value="http">Universal HTTP (Custom)</option>
                             </select>
                         </div>
 
                         <div className="form-group">
-                            <label>API Key / Secret</label>
+                            <label>Secret Key</label>
                             <input
                                 type="password"
-                                placeholder={llmConfig.provider === 'local' ? 'Optional for local' : 'sk-...'}
+                                placeholder="API Key..."
                                 value={llmConfig.api_key}
                                 onChange={(e) => setLlmConfig({ ...llmConfig, api_key: e.target.value })}
                             />
                         </div>
 
                         <div className="form-group">
-                            <label>Model Identifier</label>
+                            <label>Model ID</label>
                             <input
                                 type="text"
-                                placeholder="e.g. gpt-4o, llama3, gemini-1.5-pro"
+                                placeholder="gpt-4o, claude-3-5-sonnet..."
                                 value={llmConfig.model}
                                 onChange={(e) => setLlmConfig({ ...llmConfig, model: e.target.value })}
                             />
                         </div>
 
                         <div className="form-group">
-                            <label>Base URL (API Endpoint)</label>
+                            <label>Custom Endpoint (Base URL)</label>
                             <input
                                 type="text"
-                                placeholder={llmConfig.provider === 'local' ? 'http://localhost:11434/v1' : 'Leave empty for default'}
+                                placeholder="https://api.example.com/v1"
                                 value={llmConfig.base_url}
                                 onChange={(e) => setLlmConfig({ ...llmConfig, base_url: e.target.value })}
                             />
                         </div>
 
                         <div className="modal-actions">
-                            <button className="btn secondary" onClick={() => setShowConfig(false)}>Cancel</button>
-                            <button className="btn primary" onClick={saveConfig}>Apply & Unify</button>
+                            <button className="btn secondary" onClick={() => setShowConfig(false)}>Close</button>
+                            <button className="btn primary" onClick={saveConfig}>Update Kernel</button>
                         </div>
                     </div>
                 </div>
             )}
 
-            {/* Guide Modal */}
             {showGuide && (
                 <div className="modal-overlay">
-                    <div className="modal card guide-modal">
-                        <div className="guide-content">
-                            <pre style={{ whiteSpace: 'pre-wrap', fontFamily: 'inherit' }}>{guideContent}</pre>
+                    <div className="modal card guide-modal expanded">
+                        <h2>Operation Manual</h2>
+                        <div className="guide-content terminal-style">
+                            {guideContent ? (
+                                <pre>{guideContent}</pre>
+                            ) : (
+                                <div className="loading">Loading manual from core docs...</div>
+                            )}
                         </div>
                         <div className="modal-actions">
-                            <button className="btn primary" onClick={() => setShowGuide(false)}>I Understand</button>
+                            <button className="btn primary" onClick={() => setShowGuide(false)}>Close Manual</button>
                         </div>
                     </div>
                 </div>
