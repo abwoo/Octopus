@@ -28,7 +28,7 @@ while ($maxRetries -gt 0) {
 # 3. Start Frontend Dev Server
 Write-Host ">>> launching Frontend on http://localhost:3000..." -ForegroundColor Gray
 Set-Location web
-Start-Process npm.cmd -ArgumentList "run dev" -NoNewWindow -WindowStyle Hidden
+Start-Process npm.cmd -ArgumentList "run dev" -WindowStyle Hidden
 
 # 4. Wait for Frontend
 Start-Sleep -Seconds 3
