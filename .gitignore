@@ -1,0 +1,27 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Environment
+.venv
+env/
+venv/
+ENV/
+
+# IDE
+.vscode/
+.idea/
+
+# Logs
+logs/
+*.log
+
+# Workspace (Sandbox)
+workspace/
+!workspace/.gitkeep
+
+# OS
+Thumbs.db
+Desktop.ini
+.DS_Store
