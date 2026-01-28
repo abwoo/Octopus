@@ -58,6 +58,10 @@ class LLMEngine:
             genai.configure(api_key=api_key)
         elif provider == "anthropic":
             self._anthropic_client = Anthropic(api_key=api_key, base_url=base_url)
+        elif provider == "deepseek":
+            # DeepSeek uses OpenAI protocol but with a specific endpoint if not provided
+            ds_url = base_url or "https://api.deepseek.com/v1"
+            self._client = OpenAI(api_key=api_key, base_url=ds_url)
         elif provider in ["openai", "local", "custom"]:
             self._client = OpenAI(api_key=api_key or "no-key", base_url=base_url)
 
@@ -66,7 +70,7 @@ class LLMEngine:
             return await self._call_gemini(prompt)
         elif self._provider == "anthropic":
             return await self._call_anthropic(prompt)
-        elif self._provider in ["openai", "local", "custom"]:
+        elif self._provider in ["openai", "local", "custom", "deepseek"]:
             return await self._call_openai(prompt)
         elif self._provider == "http":
             return await self._call_universal_http(prompt)
