@@ -18,93 +18,106 @@ import {
     Key,
     Database,
     Link2,
-    Languages
+    Languages,
+    Clipboard,
+    Zap
 } from 'lucide-react'
 
-// Hardcoded fallback content for the guide to ensure it ALWAYS shows up
+// v0.5 Full Internal Documentation Cache
 const EMBEDDED_GUIDE = {
-    zh: `# Octopus 操作指南 (v0.4)
-欢迎使用 Octopus。这是一个由 AI 驱动的 Windows 自动化执行引擎。
+    zh: `# Octopus 终极操作手册 (v0.5)
 
-## 1. 核心功能
-- **AI 模式**: 直接输入指令，AI 会自动寻找对应的本地技能执行。
-- **PS 模式**: 输入 \`!\` 开头的指令，直接透传到 PowerShell 执行。
-- **多语言支持**: 顶部切换中英文界面。
+欢迎使用 Octopus。本手册详细记录了目前版本的所有核心能力、参数定义以及进阶用法。
 
-## 2. 快捷指令
-- \`!ls\`: 列出当前目录。
-- \`!Get-Process\`: 查看系统进程。
-- \`!ipconfig\`: 查看网络信息。
+## 1. 核心交互
+- **AI 智能模式**: 直接输入指令（如“帮我写个文件”）。
+- **PS 透传模式**: 输入 \`!\` 开头的指令（如 \`!ls\`, \`!dir\`）。
 
-## 3. 模型配置
-支持 OpenAI, DeepSeek, Gemini, Claude, 以及任何通用 API 端点。`,
-    en: `# Octopus Operation Guide (v0.4)
-Welcome to Octopus, an AI-powered automation engine for Windows.
+## 2. 全量技能库 (Skills)
+- **mouse (鼠标)**: 移动(\`move\`)、点击(\`click\`)、滚动(\`scroll\`)。
+- **keyboard (键盘)**: 输入(\`type\`)、组合键(\`hotkey\`)、按键(\`press\`)。
+- **file (文件)**: 写入(\`write\`)、读取(\`read\`)、删除(\`delete\`)。限制在 workspace 目录。
+- **clipboard (剪贴板)**: [NEW] 写入(\`write\`)、读取(\`read\`)、清空(\`clear\`)。
+- **hardware (硬件)**: [NEW] 资源占用(\`usage\`)、硬件规格(\`specs\`)。
+- **network (网络)**: 执行 HTTP 请求 (\`request\`)。
+- **process (进程)**: 列表(\`list\`)、终止(\`kill\`)。
 
-## 1. Core Features
-- **AI Mode**: Type instructions, AI will generate actions.
-- **PS Mode**: Use \`!\` prefix to execute raw PowerShell commands.
-- **Language**: Toggle between ZH/EN in the top bar.
+## 3. 进阶技巧
+- **急停**: Ctrl+Alt+Q 立即中止所有动作。
+- **开发**: 您可以在 skills/ 目录下自定义 python 脚本。`,
 
-## 2. Shortcuts
-- \`!ls\`: List directory.
-- \`!Get-Process\`: View system processes.
-- \`!ipconfig\`: Check network status.
+    en: `# Octopus Ultimate Manual (v0.5)
 
-## 3. Configuration
-Supports OpenAI, DeepSeek, Gemini, Claude, and any universal API endpoints.`
+Welcome to Octopus. This manual documents all core capabilities and parameter definitions.
+
+## 1. Interaction
+- **AI Mode**: Type natural language (e.g. "Create a file").
+- **PS Mode**: Use \`!\` prefix (e.g. \`!ls\`, \`!Get-Process\`).
+
+## 2. Full Skills Library
+- **mouse**: move, click, scroll.
+- **keyboard**: type, hotkey, press.
+- **file**: write, read, delete (Scoped to workspace/).
+- **clipboard**: [NEW] write, read, clear.
+- **hardware**: [NEW] usage (CPU/RAM), specs.
+- **network**: HTTP requests.
+- **process**: list, kill.
+
+## 3. Tips
+- **Emergency Stop**: Press Ctrl+Alt+Q.
+- **Development**: Add custom scripts to the skills/ directory.`
 }
 
 const TRANSLATIONS = {
     zh: {
         dashboard: "混合仪表盘",
         config: "API 配置",
-        guide: "操作指南",
-        utilities: "实用工具",
-        console: "原始控制台",
-        ready: "内核 v0.4 已就绪",
-        commandInterface: "自动化中心",
-        bridgeDesc: "管理您的 AI 驱动系统动作",
-        quickActions: "快捷动作",
-        triggerDesc: "即时 PowerShell 触发器",
+        guide: "操作手册",
+        utilities: "技能列表",
+        console: "核心终端",
+        ready: "内核 v0.5 已就绪",
+        commandInterface: "全能自动化中心",
+        bridgeDesc: "AI 编排与原生 PowerShell 桥接器",
+        quickActions: "核心技能触发",
+        triggerDesc: "点击即可执行底层 Action",
         terminalTitle: "octopus-kernel-bash",
-        waiting: "等待内核流...",
-        thinking: "思考中...",
-        enterBtn: "发送",
-        placeholder: "告诉 Octopus 做什么，或者使用 ! 执行 PowerShell...",
-        psPlaceholder: "正在运行 PowerShell 命令...",
-        apply: "更新内核配置",
-        provider: "模型供应商",
-        apiKey: "API 密钥 / Secret",
+        waiting: "正在监听内核输出...",
+        thinking: "AI 正在分析指令...",
+        enterBtn: "执行",
+        placeholder: "告诉 Octopus 做什么，或输入 ! 执行 PowerShell...",
+        psPlaceholder: "正在穿透执行 PowerShell 命令...",
+        apply: "同步内核设置",
+        provider: "协议模型",
+        apiKey: "密钥 (Key)",
         modelId: "模型 ID",
-        baseUrl: "自定义 Base URL (可选)",
-        refresh: "刷新文档",
-        running: "实时同步中"
+        baseUrl: "接口地址 (Base URL)",
+        refresh: "拉取最新文档",
+        running: "实时同步生效中"
     },
     en: {
         dashboard: "Hybrid Dashboard",
         config: "API Configuration",
-        guide: "Instruction Guide",
-        utilities: "Utilities",
-        console: "Raw Console",
-        ready: "KERNEL v0.4 READY",
-        commandInterface: "Automation Hub",
-        bridgeDesc: "Manage your AI-powered actions",
-        quickActions: "Quick Actions",
-        triggerDesc: "Instant PowerShell Triggers",
+        guide: "Full Manual",
+        utilities: "Skills Hub",
+        console: "Kernel Console",
+        ready: "KERNEL v0.5 READY",
+        commandInterface: "Omni-Automation",
+        bridgeDesc: "AI Orchestration & PowerShell Bridge",
+        quickActions: "Core Skills",
+        triggerDesc: "Trigger native actions manually",
         terminalTitle: "octopus-kernel-bash",
-        waiting: "Waiting for stream...",
-        thinking: "Thinking...",
-        enterBtn: "ENTER",
-        placeholder: "Tell Octopus what to do, or use ! for PowerShell",
-        psPlaceholder: "Running PowerShell command...",
-        apply: "Apply Changes",
+        waiting: "Listening for kernel...",
+        thinking: "AI Analyzing...",
+        enterBtn: "RUN",
+        placeholder: "Tell Octopus what to do / Use ! command",
+        psPlaceholder: "Executing PS 透传...",
+        apply: "Apply Settings",
         provider: "Provider",
-        apiKey: "API Key / Secret",
+        apiKey: "API Key",
         modelId: "Model ID",
-        baseUrl: "Custom Base URL (Optional)",
-        refresh: "Refresh",
-        running: "Syncing Active"
+        baseUrl: "Base URL",
+        refresh: "Refresh Docs",
+        running: "Real-time Sync"
     }
 }
 
@@ -143,7 +156,7 @@ export default function App() {
         fetch('/api/guide')
             .then(res => res.json())
             .then(data => {
-                if (data.content && !data.content.includes("not found")) {
+                if (data.content && data.content.length > 50) {
                     setGuideContent(data.content)
                 } else {
                     setGuideContent(EMBEDDED_GUIDE[lang])
@@ -160,7 +173,7 @@ export default function App() {
 
         if (cmd.startsWith('!')) {
             const rawCmd = cmd.substring(1)
-            addLocalLog(`Executing: ${rawCmd}`, 'terminal')
+            addLocalLog(`Shell command: ${rawCmd}`, 'terminal')
             try {
                 const res = await fetch('/api/terminal', {
                     method: 'POST',
@@ -169,12 +182,11 @@ export default function App() {
                 })
                 const data = await res.json()
                 if (data.output) addLocalLog(data.output, 'ok')
-                if (data.error) addLocalLog(data.error, 'error')
             } catch (err) {
-                addLocalLog(`Terminal Error: ${err.message}`, 'error')
+                addLocalLog(`Error: ${err.message}`, 'error')
             }
         } else {
-            addLocalLog(`Instruction: ${cmd}`, 'user')
+            addLocalLog(`User command: ${cmd}`, 'user')
             try {
                 const res = await fetch('/api/chat', {
                     method: 'POST',
@@ -182,17 +194,14 @@ export default function App() {
                     body: JSON.stringify({ prompt: cmd })
                 })
                 const data = await res.json()
-                if (data.status === 'error') {
-                    addLocalLog(`AI Error: ${data.message}`, 'error')
-                } else {
-                    addLocalLog(`AI Intent: ${data.intent}`, 'ai')
+                if (data.results) {
                     data.results.forEach(r => {
-                        if (r.status === 'ok') addLocalLog(`Action Success: ${r.output.trim()}`, 'ok')
-                        else addLocalLog(`Action Error: ${r.message}`, 'error')
+                        if (r.status === 'ok') addLocalLog(`Success: ${r.output.trim()}`, 'ok')
+                        else addLocalLog(`Fail: ${r.message}`, 'error')
                     })
                 }
             } catch (err) {
-                addLocalLog(`Chat failed: ${err.message}`, 'error')
+                addLocalLog(`Fail: ${err.message}`, 'error')
             }
         }
         setPrompt('')
@@ -205,7 +214,7 @@ export default function App() {
     }
 
     const executeAction = async (type, params = {}) => {
-        addLocalLog(`Action: ${type}`, 'system')
+        addLocalLog(`Manual Action: ${type}`, 'system')
         try {
             const res = await fetch('/api/action', {
                 method: 'POST',
@@ -234,7 +243,7 @@ export default function App() {
         <div className="app-container">
             <aside className="sidebar">
                 <div className="brand">
-                    <div className="logo-box"><Box color="#6366f1" size={28} /></div>
+                    <div className="logo-box"><Zap color="#6366f1" size={28} /></div>
                     <h1>OCTOPUS</h1>
                 </div>
                 <nav className="nav">
@@ -256,13 +265,12 @@ export default function App() {
                 <header className="top-bar">
                     <div className="page-title">
                         <h2>{activeTab === 'dashboard' ? t.commandInterface : activeTab === 'config' ? t.config : t.guide}</h2>
-                        <p>{activeTab === 'dashboard' ? t.bridgeDesc : t.running}</p>
+                        <p>{t.running}</p>
                     </div>
                     <div className="top-actions">
                         <button className="lang-toggle" onClick={() => {
                             const newLang = lang === 'zh' ? 'en' : 'zh'
                             setLang(newLang)
-                            // Update guide content if it was showing embedded version
                             if (guideContent === EMBEDDED_GUIDE.zh || guideContent === EMBEDDED_GUIDE.en) {
                                 setGuideContent(EMBEDDED_GUIDE[newLang])
                             }
@@ -286,10 +294,10 @@ export default function App() {
                                         <h3>{t.quickActions}</h3>
                                         <p className="subtitle">{t.triggerDesc}</p>
                                         <div className="action-grid">
-                                            <div className="action-btn" onClick={() => executeAction('system.screen_size')}><Monitor /><span>Screen</span></div>
-                                            <div className="action-btn" onClick={() => executeAction('system.info')}><Cpu /><span>Sys Info</span></div>
-                                            <div className="action-btn" onClick={() => window.open('https://github.com', '_blank')}><Globe /><span>Browser</span></div>
-                                            <div className="action-btn" onClick={() => executeAction('file.read', { path: 'workspace/logs.txt' })}><Folder /><span>Workspace</span></div>
+                                            <div className="action-btn" onClick={() => executeAction('system.screen_size')}><Monitor /><span>Monitor</span></div>
+                                            <div className="action-btn" onClick={() => executeAction('hardware.usage')}><Cpu /><span>Usage</span></div>
+                                            <div className="action-btn" onClick={() => executeAction('clipboard.read')}><Clipboard /><span>Clipboard</span></div>
+                                            <div className="action-btn" onClick={() => executeAction('file.read', { path: 'workspace/logs.txt' })}><Folder /><span>Files</span></div>
                                         </div>
                                     </div>
                                     <div className="terminal-card">
@@ -300,7 +308,7 @@ export default function App() {
                                         <div className="log-scroller">
                                             {logs.length === 0 ? <div className="log-empty">{t.waiting}</div> :
                                                 logs.map((log, i) => (
-                                                    <div key={i} className={`log-line ${log.toLowerCase().includes('error') ? 'error' : log.toLowerCase().includes('ai') ? 'ai' : ''}`}>
+                                                    <div key={i} className={`log-line ${log.toLowerCase().includes('error') ? 'error' : log.toLowerCase().includes('ok') ? 'ok' : ''}`}>
                                                         <span className="log-msg">{log}</span>
                                                     </div>
                                                 ))}
@@ -315,54 +323,39 @@ export default function App() {
                             <motion.div key="cfg" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="glass-card" style={{ maxWidth: '800px', margin: '0 auto' }}>
                                 <div className="config-header">
                                     <div className="icon-badge"><Settings color="var(--accent)" size={32} /></div>
-                                    <div>
-                                        <h3>{t.config}</h3>
-                                        <p className="subtitle">Diversify your LLM adapters (DeepSeek ready)</p>
-                                    </div>
+                                    <div><h3>{t.config}</h3><p className="subtitle">Tune your core LLM brain</p></div>
                                 </div>
                                 <div className="config-grid">
                                     <div className="form-group">
                                         <label>{t.provider}</label>
                                         <select value={llmConfig.provider} onChange={(e) => setLlmConfig({ ...llmConfig, provider: e.target.value })}>
-                                            <option value="deepseek">DeepSeek (R1/V3)</option>
-                                            <option value="openai">OpenAI (GPT-4o/o1)</option>
-                                            <option value="gemini">Google Gemini (1.5)</option>
-                                            <option value="anthropic">Anthropic (Claude 3.5)</option>
-                                            <option value="http">Universal HTTP</option>
+                                            <option value="deepseek">DeepSeek (V3/R1)</option>
+                                            <option value="openai">OpenAI (Pro)</option>
+                                            <option value="gemini">Google Gemini</option>
+                                            <option value="anthropic">Anthropic</option>
                                         </select>
                                     </div>
-                                    <div className="form-group">
-                                        <label>{t.apiKey}</label>
-                                        <input type="password" placeholder="Key..." value={llmConfig.api_key} onChange={(e) => setLlmConfig({ ...llmConfig, api_key: e.target.value })} />
-                                    </div>
+                                    <div className="form-group"><label>{t.apiKey}</label><input type="password" value={llmConfig.api_key} onChange={(e) => setLlmConfig({ ...llmConfig, api_key: e.target.value })} /></div>
                                 </div>
                                 <div className="config-grid">
-                                    <div className="form-group">
-                                        <label>{t.modelId}</label>
-                                        <input type="text" placeholder="e.g. deepseek-chat" value={llmConfig.model} onChange={(e) => setLlmConfig({ ...llmConfig, model: e.target.value })} />
-                                    </div>
-                                    <div className="form-group">
-                                        <label>{t.baseUrl}</label>
-                                        <input type="text" placeholder="https://api.deepseek.com/v1" value={llmConfig.base_url} onChange={(e) => setLlmConfig({ ...llmConfig, base_url: e.target.value })} />
-                                    </div>
+                                    <div className="form-group"><label>{t.modelId}</label><input type="text" value={llmConfig.model} onChange={(e) => setLlmConfig({ ...llmConfig, model: e.target.value })} /></div>
+                                    <div className="form-group"><label>{t.baseUrl}</label><input type="text" value={llmConfig.base_url} onChange={(e) => setLlmConfig({ ...llmConfig, base_url: e.target.value })} /></div>
                                 </div>
                                 <button className="enter-btn" style={{ width: '100%', padding: '1.25rem' }} onClick={() => {
                                     fetch('/api/config', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(llmConfig) })
-                                    addLocalLog(`Kernel update: ${llmConfig.provider}`, 'system')
-                                }}>
-                                    {t.apply}
-                                </button>
+                                    addLocalLog(`Kernel Updated: ${llmConfig.provider}`, 'system')
+                                }}>{t.apply}</button>
                             </motion.div>
                         )}
 
                         {activeTab === 'guide' && (
                             <motion.div key="gui" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="glass-card doc-viewer">
                                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '2rem' }}>
-                                    <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}><BookOpen color="var(--accent)" /><h3>{t.guide}</h3></div>
-                                    <button onClick={fetchGuide} className="action-btn" style={{ padding: '0.5rem 1rem' }}>{t.refresh}</button>
+                                    <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}><BookOpen color="var(--accent)" size={24} /><h3>{t.guide}</h3></div>
+                                    <button onClick={fetchGuide} className="action-btn" style={{ padding: '0.4rem 1rem' }}>{t.refresh}</button>
                                 </div>
-                                <div className="guide-content-wrapper terminal-style" style={{ padding: '1.5rem', background: '#000', borderRadius: '16px', border: '1px solid #222' }}>
-                                    <pre style={{ whiteSpace: 'pre-wrap', color: '#fff', fontSize: '0.95rem' }}>{guideContent}</pre>
+                                <div className="guide-content-wrapper terminal-style" style={{ padding: '2rem', background: '#000', borderRadius: '24px', border: '1px solid #222' }}>
+                                    <pre style={{ whiteSpace: 'pre-wrap', color: '#fff', fontSize: '1rem', lineHeight: '1.8' }}>{guideContent}</pre>
                                 </div>
                             </motion.div>
                         )}
@@ -372,16 +365,8 @@ export default function App() {
                 <footer className="command-bar">
                     <form onSubmit={handleCommand} className="input-box">
                         <span style={{ color: 'var(--accent)', fontWeight: 900 }}>{prompt.startsWith('!') ? '>' : 'AI'}</span>
-                        <input
-                            type="text"
-                            placeholder={prompt.startsWith('!') ? t.psPlaceholder : t.placeholder}
-                            value={prompt}
-                            onChange={(e) => setPrompt(e.target.value)}
-                            disabled={isProcessing}
-                        />
-                        <button type="submit" className="enter-btn" disabled={isProcessing || !prompt.trim()}>
-                            {isProcessing ? t.thinking : <Send size={18} />}
-                        </button>
+                        <input type="text" placeholder={prompt.startsWith('!') ? t.psPlaceholder : t.placeholder} value={prompt} onChange={(e) => setPrompt(e.target.value)} disabled={isProcessing} />
+                        <button type="submit" className="enter-btn" disabled={isProcessing || !prompt.trim()}>{isProcessing ? t.thinking : <Send size={18} />}</button>
                     </form>
                 </footer>
             </main>
