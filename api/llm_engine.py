@@ -43,21 +43,27 @@ class LLMEngine:
         self._provider = "mock"
         self._api_key = ""
         self._model_name = ""
+        self._base_url = None
 
-    def configure(self, provider: str, api_key: str, model_name: str):
+    def configure(self, provider: str, api_key: str, model_name: str, base_url: Optional[str] = None):
         self._provider = provider
         self._api_key = api_key
         self._model_name = model_name
+        self._base_url = base_url
         
         if provider == "gemini":
             genai.configure(api_key=api_key)
-        elif provider == "openai":
-            self._client = OpenAI(api_key=api_key)
+        else:
+            # All others (openai, local, custom) use the OpenAI client pattern
+            self._client = OpenAI(
+                api_key=api_key or "no-key-required",
+                base_url=base_url
+            )
 
     async def generate_actions(self, prompt: str) -> Dict[str, Any]:
         if self._provider == "gemini":
             return await self._call_gemini(prompt)
-        elif self._provider == "openai":
+        elif self._provider in ["openai", "local", "custom"]:
             return await self._call_openai(prompt)
         else:
             return {"intent": "Mock execution", "actions": [{"type": "system.info", "params": {}}]}

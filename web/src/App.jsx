@@ -1,63 +1,70 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 
 export default function App() {
-    const [status, setStatus] = useState('offline')
+    const [status, setStatus] = useState('online')
     const [logs, setLogs] = useState([])
     const [prompt, setPrompt] = useState('')
-    const [isSyncing, setIsSyncing] = useState(false)
+    const [isProcessing, setIsProcessing] = useState(false)
     const [showConfig, setShowConfig] = useState(false)
+    const logsEndRef = useRef(null)
 
     // LLM Config State
     const [llmConfig, setLlmConfig] = useState({
         provider: 'gemini',
         api_key: '',
-        model: 'gemini-1.5-flash'
+        model: 'gemini-1.5-flash',
+        base_url: ''
     })
 
     useEffect(() => {
-        const fetchStatus = async () => {
-            try {
-                const res = await fetch('/api/status')
-                const data = await res.json()
-                setStatus(data.status)
-            } catch (err) {
-                setStatus('offline')
-            }
-        }
-
-        const fetchLogs = async () => {
-            try {
-                const res = await fetch('/api/logs')
-                const data = await res.json()
-                setLogs(data.logs)
-            } catch (err) { }
-        }
+        // Load config from backend on mount
+        fetch('/api/logs').then(res => res.json()).then(data => setLogs(data.logs || []))
 
         const interval = setInterval(() => {
-            fetchStatus()
-            fetchLogs()
-        }, 1000)
+            fetch('/api/logs')
+                .then(res => res.json())
+                .then(data => setLogs(data.logs || []))
+                .catch(() => { })
+        }, 2000)
 
         return () => clearInterval(interval)
     }, [])
 
+    useEffect(() => {
+        logsEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+    }, [logs])
+
+    const addLocalLog = (msg, type = 'info') => {
+        const time = new Date().toLocaleTimeString()
+        setLogs(prev => [...prev, `${time} | ${type.toUpperCase()} | ${msg}`])
+    }
+
     const executeAction = async (type, params = {}) => {
+        const cmdStr = `agent run '{"type": "${type}", "params": ${JSON.stringify(params)}}'`
+        addLocalLog(`Calling Terminal: ${cmdStr}`, 'system')
+
         try {
-            await fetch('/api/action', {
+            const res = await fetch('/api/action', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ type, params })
             })
+            const data = await res.json()
+            if (data.status === 'ok') {
+                addLocalLog(`Terminal Output: ${data.output.trim()}`, 'ok')
+            }
         } catch (err) {
-            console.error(err)
+            addLocalLog(`Execution failed: ${err.message}`, 'error')
         }
     }
 
     const handleChat = async (e) => {
         e.preventDefault()
-        if (!prompt.trim() || isSyncing) return
+        if (!prompt.trim() || isProcessing) return
 
-        setIsSyncing(true)
+        setIsProcessing(true)
+        addLocalLog(`Instruction: ${prompt}`, 'user')
+
         try {
             const res = await fetch('/api/chat', {
                 method: 'POST',
@@ -65,14 +72,21 @@ export default function App() {
                 body: JSON.stringify({ prompt })
             })
             const data = await res.json()
+
             if (data.status === 'error') {
-                alert(`LLM Error: ${data.message}`)
+                addLocalLog(`AI Error: ${data.message}`, 'error')
+            } else {
+                addLocalLog(`AI Intent: ${data.intent}`, 'ai')
+                data.results.forEach(r => {
+                    if (r.status === 'ok') addLocalLog(`Action Success: ${r.output.trim()}`, 'ok')
+                    else addLocalLog(`Action Error: ${r.message}`, 'error')
+                })
             }
             setPrompt('')
         } catch (err) {
-            alert('Failed to send prompt to Octopus')
+            addLocalLog(`Chat failed: ${err.message}`, 'error')
         } finally {
-            setIsSyncing(false)
+            setIsProcessing(false)
         }
     }
 
@@ -84,8 +98,9 @@ export default function App() {
                 body: JSON.stringify(llmConfig)
             })
             setShowConfig(false)
+            addLocalLog(`LLM Platform configured: ${llmConfig.provider}`, 'system')
         } catch (err) {
-            alert('Failed to save configuration')
+            addLocalLog('Failed to save config', 'error')
         }
     }
 
@@ -94,22 +109,26 @@ export default function App() {
             <header className="header">
                 <div className="brand">
                     <h1>OCTOPUS</h1>
-                    <span className="version">v0.1 Premium</span>
+                    <span className="version">Unified Engine v0.1</span>
                 </div>
                 <div className="header-actions">
                     <button className="btn-icon-only" onClick={() => setShowConfig(true)} title="Settings">
                         ⚙️
                     </button>
                     <div className="status-badge">
-                        <div className={`status-dot ${status === 'ready' ? 'online' : 'offline'}`}></div>
-                        {status.toUpperCase()}
+                        <div className="status-dot online"></div>
+                        TERMINAL CONNECTED
                     </div>
                 </div>
             </header>
 
             <main className="grid">
                 <section className="card card-controls">
-                    <h2>Quick Actions</h2>
+                    <div className="card-header">
+                        <h2>Unified Control</h2>
+                        <p className="subtitle">Logic Path Identical to PowerShell CLI</p>
+                    </div>
+
                     <div className="controls">
                         <button className="btn" onClick={() => executeAction('mouse.move', { x: 500, y: 500 })}>
                             <span className="btn-icon">🎯</span>
@@ -130,34 +149,48 @@ export default function App() {
                     </div>
 
                     <div className="chat-area">
-                        <h3>Natural Language Instruction</h3>
+                        <h3>Human-in-the-Loop AI Orchestration</h3>
                         <form onSubmit={handleChat} className="chat-form">
                             <input
                                 type="text"
-                                placeholder="Ex: 'Create a new folder named work on desktop'..."
+                                placeholder="Ex: 'List files in workspace'..."
                                 value={prompt}
                                 onChange={(e) => setPrompt(e.target.value)}
-                                disabled={isSyncing}
+                                disabled={isProcessing}
                             />
-                            <button type="submit" disabled={isSyncing}>
-                                {isSyncing ? '...' : 'Send'}
+                            <button type="submit" disabled={isProcessing}>
+                                {isProcessing ? 'Thinking...' : 'Execute CLI'}
                             </button>
                         </form>
                     </div>
                 </section>
 
                 <section className="card card-logs">
-                    <h2>Execution Logs</h2>
+                    <h2>CLI Output Console</h2>
                     <div className="log-container">
                         {logs.length === 0 ? (
-                            <div className="log-empty">No actions recorded yet...</div>
+                            <div className="log-empty">Waiting for CLI interaction...</div>
                         ) : (
-                            logs.map((log, i) => (
-                                <div key={i} className="log-entry">
-                                    {log}
-                                </div>
-                            ))
+                            logs.map((log, i) => {
+                                const isSystem = log.includes('| SYSTEM |') || log.includes('Calling Terminal')
+                                const isError = log.includes('| ERROR |') || log.includes('Error')
+                                const isOk = log.includes('| OK |') || log.includes('Action Success')
+                                const isAi = log.includes('| AI |')
+
+                                let className = "log-entry"
+                                if (isSystem) className += " system"
+                                if (isError) className += " error"
+                                if (isOk) className += " ok"
+                                if (isAi) className += " ai"
+
+                                return (
+                                    <div key={i} className={className}>
+                                        {log}
+                                    </div>
+                                )
+                            })
                         )}
+                        <div ref={logsEndRef} />
                     </div>
                 </section>
             </main>
@@ -165,39 +198,55 @@ export default function App() {
             {showConfig && (
                 <div className="modal-overlay">
                     <div className="modal card">
-                        <h2>Platform Configuration</h2>
+                        <h2>LLM Platform Engine</h2>
+                        <p className="modal-subtitle">Configure cloud or local LLM providers</p>
+
                         <div className="form-group">
-                            <label>Provider</label>
+                            <label>Provider Type</label>
                             <select
                                 value={llmConfig.provider}
                                 onChange={(e) => setLlmConfig({ ...llmConfig, provider: e.target.value })}
                             >
                                 <option value="gemini">Google Gemini</option>
-                                <option value="openai">OpenAI</option>
-                                <option value="mock">Mock Tester</option>
+                                <option value="openai">OpenAI Cloud</option>
+                                <option value="local">Local LLM (Ollama/LM Studio)</option>
+                                <option value="custom">Custom Provider</option>
                             </select>
                         </div>
+
                         <div className="form-group">
-                            <label>API Key</label>
+                            <label>API Key / Secret</label>
                             <input
                                 type="password"
-                                placeholder="Paste your key here..."
+                                placeholder={llmConfig.provider === 'local' ? 'Optional for local' : 'sk-...'}
                                 value={llmConfig.api_key}
                                 onChange={(e) => setLlmConfig({ ...llmConfig, api_key: e.target.value })}
                             />
                         </div>
+
                         <div className="form-group">
-                            <label>Model Name</label>
+                            <label>Model Identifier</label>
                             <input
                                 type="text"
-                                placeholder="e.g. gemini-1.5-pro"
+                                placeholder="e.g. gpt-4o, llama3, gemini-1.5-pro"
                                 value={llmConfig.model}
                                 onChange={(e) => setLlmConfig({ ...llmConfig, model: e.target.value })}
                             />
                         </div>
+
+                        <div className="form-group">
+                            <label>Base URL (API Endpoint)</label>
+                            <input
+                                type="text"
+                                placeholder={llmConfig.provider === 'local' ? 'http://localhost:11434/v1' : 'Leave empty for default'}
+                                value={llmConfig.base_url}
+                                onChange={(e) => setLlmConfig({ ...llmConfig, base_url: e.target.value })}
+                            />
+                        </div>
+
                         <div className="modal-actions">
                             <button className="btn secondary" onClick={() => setShowConfig(false)}>Cancel</button>
-                            <button className="btn primary" onClick={saveConfig}>Save Changes</button>
+                            <button className="btn primary" onClick={saveConfig}>Apply & Unify</button>
                         </div>
                     </div>
                 </div>

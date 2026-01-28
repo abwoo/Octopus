@@ -1,25 +1,22 @@
+import subprocess
+import json
 import sys
 import os
-
-# Add project root to sys.path
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
 import queue
 import logging
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 
 # Standard Octopus imports
 from core.agent import Agent
-
 from api.llm_engine import LLMEngine
 
 # Setup FastAPI
 app = FastAPI(title="Octopus Dashboard API")
 
-# Enable CORS for frontend
+# Enable CORS
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -33,7 +30,6 @@ llm_engine = LLMEngine()
 config = {
     "workspace": "workspace",
     "log_file": "logs/actions.log",
-    "adapter": "file",
     "llm_config": "config/llm_config.json"
 }
 
@@ -45,6 +41,7 @@ class LLMConfigRequest(BaseModel):
     provider: str
     api_key: str
     model: str
+    base_url: Optional[str] = None
 
 class ChatRequest(BaseModel):
     prompt: str
@@ -52,73 +49,75 @@ class ChatRequest(BaseModel):
 @app.on_event("startup")
 async def startup_event():
     global agent_instance
-    if not os.path.exists("workspace"):
-        os.makedirs("workspace")
-    if not os.path.exists("config"):
-        os.makedirs("config")
+    if not os.path.exists("workspace"): os.makedirs("workspace")
+    if not os.path.exists("config"): os.makedirs("config")
     
-    # Load persistence LLM config if exists
     if os.path.exists(config["llm_config"]):
         with open(config["llm_config"], "r") as f:
-            saved_config = json.load(f)
-            llm_engine.configure(
-                saved_config.get("provider", "mock"),
-                saved_config.get("api_key", ""),
-                saved_config.get("model", "")
-            )
+            c = json.load(f)
+            llm_engine.configure(c["provider"], c["api_key"], c["model"], c.get("base_url"))
 
+    # Only start agent if needed for background adapters, 
+    # but for unified logic we'll mostly use the CLI subprocess.
     agent_instance = Agent(config)
     import threading
     threading.Thread(target=agent_instance.start, daemon=True).start()
 
-@app.get("/status")
-async def get_status():
-    return {"status": "ready" if agent_instance and agent_instance._running else "initializing"}
+def run_cli_action(action_data: Dict[str, Any]):
+    """Execute action through the exact same logic path as agent.ps1 / cli main.py"""
+    cli_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "cli", "main.py")
+    json_str = json.dumps(action_data)
+    
+    # Run as a separate process to guarantee same environment and logic chain
+    try:
+        result = subprocess.run(
+            [sys.executable, cli_path, "run", json_str],
+            capture_output=True,
+            text=True,
+            check=True
+        )
+        return {"status": "ok", "output": result.stdout}
+    except subprocess.CalledProcessError as e:
+        return {"status": "error", "message": e.stderr or str(e)}
 
 @app.post("/config")
 async def save_config(req: LLMConfigRequest):
-    llm_engine.configure(req.provider, req.api_key, req.model)
+    llm_engine.configure(req.provider, req.api_key, req.model, req.base_url)
     with open(config["llm_config"], "w") as f:
         json.dump(req.dict(), f)
     return {"status": "configured"}
 
 @app.post("/chat")
 async def chat(req: ChatRequest):
-    if not agent_instance or not agent_instance._running:
-        raise HTTPException(status_code=503, detail="Agent not running")
-    
-    # 1. Ask LLM for actions
-    log.info(f"Processing chat prompt: {req.prompt}")
     result = await llm_engine.generate_actions(req.prompt)
-    
     if "error" in result:
         return {"status": "error", "message": result["error"]}
 
-    # 2. Queue actions
+    # Execute the generated actions sequence through the CLI path
+    outputs = []
     for action in result.get("actions", []):
-        agent_instance._action_queue.put(action)
+        res = run_cli_action(action)
+        outputs.append(res)
     
     return {
-        "status": "queued", 
+        "status": "completed", 
         "intent": result.get("intent", "Executed"),
-        "actions_count": len(result.get("actions", []))
+        "results": outputs
     }
 
 @app.post("/action")
 async def execute_action(action: ActionRequest):
-    if not agent_instance or not agent_instance._running:
-        raise HTTPException(status_code=503, detail="Agent not running")
-    agent_instance._action_queue.put(action.dict())
-    return {"status": "queued", "action": action.type}
+    res = run_cli_action(action.dict())
+    if res["status"] == "error":
+        raise HTTPException(status_code=500, detail=res["message"])
+    return res
 
 @app.get("/logs")
 async def get_logs(limit: int = 50):
     log_file = config["log_file"]
-    if not os.path.exists(log_file):
-        return {"logs": []}
+    if not os.path.exists(log_file): return {"logs": []}
     with open(log_file, "r", encoding="utf-8") as f:
-        lines = f.readlines()
-        return {"logs": lines[-limit:]}
+        return {"logs": f.readlines()[-limit:]}
 
 if __name__ == "__main__":
     import uvicorn
