@@ -1,0 +1,6 @@
+# Octopus Dependencies
+# ====================
+pyautogui>=0.9.54
+pynput>=1.7.6
+pyyaml>=6.0
+click>=8.0.0
