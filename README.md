@@ -56,6 +56,14 @@ Run the agent in listening mode (fetches actions from Adapter):
 .\run.ps1
 ```
 
+### Dashboard (Modern UI)
+
+The easiest way to control Octopus is via the Dashboard:
+
+```powershell
+.\start_dashboard.ps1
+```
+
 ### CLI Commands
 
 Use `.\agent.ps1` (or `python cli/main.py`) to interact with the system:

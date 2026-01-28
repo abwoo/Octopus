@@ -1,12 +1,6 @@
-# Octopus Run Script
-# ==================
-# Starts the Agent in execution mode
+# Octopus Agent Launcher
+$ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
+Set-Location $ScriptDir
 
-$ErrorActionPreference = "Stop"
-$ScriptPath = Split-Path -Parent $MyInvocation.MyCommand.Path
-Set-Location $ScriptPath
-
-Write-Host "Starting Octopus Agent..." -ForegroundColor Cyan
-Write-Host "Press Ctrl+Alt+Q to emergency stop" -ForegroundColor Yellow
-
+Write-Host ">>> Starting Octopus Agent..." -ForegroundColor Cyan
 python cli/main.py run
