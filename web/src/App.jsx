@@ -6,6 +6,8 @@ export default function App() {
     const [prompt, setPrompt] = useState('')
     const [isProcessing, setIsProcessing] = useState(false)
     const [showConfig, setShowConfig] = useState(false)
+    const [showGuide, setShowGuide] = useState(false)
+    const [guideContent, setGuideContent] = useState('')
     const logsEndRef = useRef(null)
 
     // LLM Config State
@@ -17,8 +19,9 @@ export default function App() {
     })
 
     useEffect(() => {
-        // Load config from backend on mount
+        // Initial fetch
         fetch('/api/logs').then(res => res.json()).then(data => setLogs(data.logs || []))
+        fetch('/api/guide').then(res => res.json()).then(data => setGuideContent(data.content))
 
         const interval = setInterval(() => {
             fetch('/api/logs')
@@ -112,6 +115,9 @@ export default function App() {
                     <span className="version">Unified Engine v0.1</span>
                 </div>
                 <div className="header-actions">
+                    <button className="btn-icon-only" onClick={() => setShowGuide(true)} title="Usage Guide">
+                        ❓
+                    </button>
                     <button className="btn-icon-only" onClick={() => setShowConfig(true)} title="Settings">
                         ⚙️
                     </button>
@@ -195,6 +201,7 @@ export default function App() {
                 </section>
             </main>
 
+            {/* Configuration Modal */}
             {showConfig && (
                 <div className="modal-overlay">
                     <div className="modal card">
@@ -247,6 +254,20 @@ export default function App() {
                         <div className="modal-actions">
                             <button className="btn secondary" onClick={() => setShowConfig(false)}>Cancel</button>
                             <button className="btn primary" onClick={saveConfig}>Apply & Unify</button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Guide Modal */}
+            {showGuide && (
+                <div className="modal-overlay">
+                    <div className="modal card guide-modal">
+                        <div className="guide-content">
+                            <pre style={{ whiteSpace: 'pre-wrap', fontFamily: 'inherit' }}>{guideContent}</pre>
+                        </div>
+                        <div className="modal-actions">
+                            <button className="btn primary" onClick={() => setShowGuide(false)}>I Understand</button>
                         </div>
                     </div>
                 </div>

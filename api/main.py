@@ -112,6 +112,14 @@ async def execute_action(action: ActionRequest):
         raise HTTPException(status_code=500, detail=res["message"])
     return res
 
+@app.get("/guide")
+async def get_guide():
+    guide_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "docs", "GUIDE.md")
+    if not os.path.exists(guide_path):
+        return {"content": "# Guide not found"}
+    with open(guide_path, "r", encoding="utf-8") as f:
+        return {"content": f.read()}
+
 @app.get("/logs")
 async def get_logs(limit: int = 50):
     log_file = config["log_file"]

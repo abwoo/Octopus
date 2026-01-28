@@ -329,6 +329,24 @@ body {
   margin-top: 2rem;
 }
 
+.guide-modal {
+  max-width: 600px;
+  max-height: 80vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.guide-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 1rem;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 16px;
+  margin-bottom: 1.5rem;
+  line-height: 1.6;
+}
+
 @media (max-width: 768px) {
   .grid {
     grid-template-columns: 1fr;
