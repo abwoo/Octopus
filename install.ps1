@@ -31,7 +31,7 @@ Write-Host "[2/5] Setting up Octopus..." -ForegroundColor Yellow
 if (Test-Path "Octopus") {
     Write-Host "[INFO] Updating existing repository..." -ForegroundColor Blue
     Set-Location Octopus
-    git pull
+    git pull origin main --allow-unrelated-histories --no-rebase
 }
 else {
     git clone https://github.com/abwoo/Octopus.git

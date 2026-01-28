@@ -10,7 +10,7 @@ Start-Process python -ArgumentList "api/main.py" -WindowStyle Hidden
 
 # 2. Start Frontend Dev Server
 Write-Host ">>> launching Frontend on http://localhost:3000..." -ForegroundColor Gray
-cd web
+Set-Location web
 Start-Process npm -ArgumentList "run dev" -WindowStyle Hidden
 
 # 3. Open Browser
@@ -19,3 +19,4 @@ Start-Process "http://localhost:3000"
 
 Write-Host ">>> Dashboard launched!" -ForegroundColor Green
 Write-Host ">>> Close the terminal windows to stop the services (or kill python/node processes)." -ForegroundColor Yellow
+
